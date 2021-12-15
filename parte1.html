@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<link href="style.css" rel="stylesheet"/>
+	<title> Processamento de imagens em Canvas </title>
+	<script type="text/javascript" async
+		src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML" async>
+	</script>
+</head>
+<body>
+	<h1> Segunda parte da A2 de Computação Gráfica</h1>
+
+	<h2> Processamento de imagem e histograma de RGB </h2>
+	
+<figure>
+	<canvas id="imagemOriginal" width="400" height="400"></canvas>
+	<canvas id="imagemOutput" width="400" height="400"></canvas>
+	<canvas id="Histograma" width="255" height="400"></canvas>
+	
+	<figcaption>
+		Imagem 1: Original. Imagem 2: original processada. Imagem 3: Histograma da distribuição RGB da imagem processada.
+	</figcaption>
+	<p id="display-array"></p>
+
+</figure>
+	<h2> Histograma da luminância da imagem: </h2>
+	<p> Realizamos a conversão de RGB para HSL, e utilizando a variável "L" plotamos o histograma de luminância da imagem: </p>
+	<canvas id="Luminancia" width="400" height="300"></canvas>
+	
+	<h2> Alteração da frequência das cores (maior contraste): </h2>
+	<p> Eu tinha interesse em aplicar a mudança de frequência na imagem processada, então fazemos a leitura dessa imagem alterando os valores para reduzi-los em 20% caso fossem tons claros ou aumentar em 20% caso fossem mais escuros, e em seguida para 40%, para comparação:</p>
+	<canvas id="Redone1" width="400" height="400"></canvas>
+	<canvas id="Redone2" width="400" height="400"></canvas>
+
+<script>
+	// canvas
+	var canvasOriginal = document.getElementById("imagemOriginal");
+	var ctxOriginal = canvasOriginal.getContext("2d");
+		
+	var canvasOut = document.getElementById("imagemOutput");
+	var ctxOutput = canvasOut.getContext("2d");
+	
+	var canvasHist = document.getElementById('Histograma');
+	var ctxHist = canvasHist.getContext('2d');
+	
+	var canvasLum = document.getElementById('Luminancia');
+	var ctxLum = canvasLum.getContext('2d');
+	
+	var canvasRedone1 = document.getElementById('Redone1');
+	var ctxRedone1 = canvasRedone1.getContext('2d');	
+	
+	var canvasRedone2 = document.getElementById('Redone2');
+	var ctxRedone2 = canvasRedone2.getContext('2d');
+	
+	var imgOriginal = new Image();
+	var imgDataOut = new Image();
+	
+	
+	// imagens
+	var imgUrl = "https://upload.wikimedia.org/wikipedia/commons/5/53/LagartoDestaque.jpg";
+
+
+	// random
+	
+	function randomNumber(min, max) { 
+    return Math.floor(Math.random() * (max - min) + min);
+} 
+
+	imgOriginal.crossOrigin = '';
+	imgDataOut.crossOrigin = '';
+    imgOriginal.src = imgUrl
+	
+	imgOriginal.onload = function(){
+	ctxOriginal.drawImage(imgOriginal, 0, 0);
+	ctxOutput.drawImage(imgOriginal, 0, 0);
+	
+	imgDataOut = ctxOriginal.getImageData(0, 0, 400, 400);
+	
+	// gera a imagem modificada aleatoriamente
+	a = randomNumber(200, 400)
+	b = randomNumber(200, 400)
+	c = randomNumber(200, 400)
+	for (let i = 0; i < imgDataOut.data.length; i += 4) {
+			imgDataOut.data[i] = a - imgDataOut.data[i];
+			imgDataOut.data[i+1] =  b - imgDataOut.data[i+1];
+			imgDataOut.data[i+2] =  c  - imgDataOut.data[i+2];
+		}
+		ctxOutput.putImageData(imgDataOut, 0, 0);	
+	
+
+	// histograma rgb
+	function Hist(x,y, color) {
+	ctxHist.beginPath();
+	ctxHist.moveTo(x, 400);
+	ctxHist.lineTo(x, 400-y);
+	ctxHist.strokeStyle = color;
+    ctxHist.stroke();
+	}
+
+
+	// leitura dos pixels como rgb
+	r = [];
+	g = [];
+	b = [];
+
+	for (let i = 0; i < imgDataOut.data.length; i += 4) {
+	
+		if ( isNaN(r[imgDataOut.data[i]]) )
+		{ r[imgDataOut.data[i]] = 0};
+		
+		r[imgDataOut.data[i]] += 1;
+		
+		if ( isNaN(g[imgDataOut.data[i+1]]) )
+		{ g[imgDataOut.data[i+1]] = 0};
+		
+		g[imgDataOut.data[i+1]] += 1;
+		
+		if ( isNaN(b[imgDataOut.data[i+2]]) )
+		{ b[imgDataOut.data[i+2]] = 0};
+		
+		b[imgDataOut.data[i+2]] += 1;
+	}	
+	
+	for(var i=0; i <= r.length; i++){
+		Hist(i,r[i]/10,'#EB1100');
+	}	
+	for(var i=0; i <= g.length; i++){
+		Hist([i],g[i]/10,'#0CEB44');
+	}
+	for(var i=0; i <= b.length; i++){
+		Hist([i],b[i]/10, '#00C8F5');
+	}
+	
+	
+	
+	
+// rgb to hsl (foco no l)
+	h = [];
+	s = [];
+	l = [];
+	
+
+	for (var i=0; i <= r.length; i++) {
+		var max = Math.max(r[i], g[i], b[i]), min = Math.min(r[i], g[i], b[i]);
+		h[i], s[i], l[i] = (max + min) / 2;
+
+		if(max == min){
+			h[i] = s[i] = 0; // achromatic
+		}else{
+			var d = max - min;
+			s[i] = l[i] > 0.5 ? d / (2 - max - min) : d / (max + min);}
+        <!-- switch(max){ -->
+            <!-- case r: h = (g[i] - b[i]) / d + (g[i] < b[i] ? 6 : 0); break; -->
+            <!-- case g: h = (b[i] - r[i]) / d + 2; break; -->
+            <!-- case b: h = (r[i] - g[i]) / d + 4; break; -->
+        <!-- } -->
+        <!-- h[i] /= 6; -->
+    }
+	
+	
+	//Histograma lum 
+	function HistLum(x,y, color) {
+	ctxLum.beginPath();
+	ctxLum.moveTo(x, 300);
+	ctxLum.lineTo(x, 300-y);
+	ctxLum.strokeStyle = color;
+    ctxLum.stroke();
+	}
+	
+	for(var i=0; i <= l.length; i++){
+	HistLum([i],l[i]/10, '#ffffff');
+	}
+
+
+	// alteração da distribuição de frequência 20%
+	for (let i = 0; i < imgDataOut.data.length; i += 4) {
+	
+		if ( imgDataOut.data[i] < 120 )
+		{imgDataOut.data[i]=imgDataOut.data[i] - imgDataOut.data[i]*0.2 };
+		
+		imgDataOut.data[i] = imgDataOut.data[i] + imgDataOut.data[i]*0.2;
+		
+		if ( imgDataOut.data[i+1] < 120 )
+		{imgDataOut.data[i+1]=imgDataOut.data[i+1] - imgDataOut.data[i+1]*0.2 };
+		
+		imgDataOut.data[i+1] = imgDataOut.data[i+1] + imgDataOut.data[i+1]*0.2;
+		
+		if ( imgDataOut.data[i+2] < 120 )
+		{imgDataOut.data[i+2]=imgDataOut.data[i+2] - imgDataOut.data[i+2]*0.2 };
+		
+		imgDataOut.data[i+2] = imgDataOut.data[i+2] + imgDataOut.data[i+2]*0.2;
+	}	
+	ctxRedone1.putImageData(imgDataOut, 0, 0);
+	
+	// 	alteração da distribuição de frequência 40%
+	for (let i = 0; i < imgDataOut.data.length; i += 4) {
+	
+		if ( imgDataOut.data[i] < 120 )
+		{imgDataOut.data[i]=imgDataOut.data[i] - imgDataOut.data[i]*0.4 };
+		
+		imgDataOut.data[i] = imgDataOut.data[i] + imgDataOut.data[i]*0.4;
+		
+		if ( imgDataOut.data[i+1] < 120 )
+		{imgDataOut.data[i+1]=imgDataOut.data[i+1] - imgDataOut.data[i+1]*0.4 };
+		
+		imgDataOut.data[i+1] = imgDataOut.data[i+1] + imgDataOut.data[i+1]*0.4;
+		
+		if ( imgDataOut.data[i+2] < 120 )
+		{imgDataOut.data[i+2]=imgDataOut.data[i+2] - imgDataOut.data[i+2]*0.4 };
+		
+		imgDataOut.data[i+2] = imgDataOut.data[i+2] + imgDataOut.data[i+2]*0.4;
+	}	
+	ctxRedone2.putImageData(imgDataOut, 0, 0);	
+};	    
+
+
+
+</script>
+
+
+</body>
+</html>
